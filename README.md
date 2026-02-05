@@ -1,16 +1,52 @@
 # instadam
 
-A new Flutter project.
+Descripción del proyecto
+Instadam es una aplicación creada con Flutter donde el usuario puede registrarse, iniciar sesión y gestionar su cuenta. La app permite publicar contenido, ver las publicaciones propias y cambiar ajustes como el idioma, el tema claro/oscuro y las notificaciones.
+También incluye la opción de recordar el usuario para entrar directamente sin pasar por la pantalla de login.
 
-## Getting Started
+La aplicación la he provado en un dispositivo iOS 
 
-This project is a starting point for a Flutter application.
+Instalación
+Descarga el proyecto o clónalo desde GitHub.
 
-A few resources to get you started if this is your first Flutter project:
+Ábrelo con VS Code o Android Studio.
 
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
+Ejecuta:
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+flutter pub get
+Conecta un dispositivo o abre un emulador.
+
+Ejecuta:
+
+flutter run
+Estructura del proyecto
+lib/ → código principal
+
+pantallas → todas las pantallas de la app
+
+servicios → autenticación, base de datos y preferencias
+
+widgets → componentes reutilizables
+
+android/ y ios/ → archivos necesarios para compilar en móvil
+
+assets/ → recursos como imágenes (si los hay)
+
+Funcionalidades implementadas
+Registro de usuario
+
+Inicio de sesión
+
+Opción de recordar usuario
+
+Publicar contenido
+
+Ver publicaciones propias
+
+Cambiar idioma
+
+Cambiar tema claro/oscuro
+
+Activar o desactivar notificaciones
+
+Cerrar sesión
