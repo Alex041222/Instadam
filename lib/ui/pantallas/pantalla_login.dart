@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../servicios/servicio_autenticacion.dart';
-import 'pantalla_feed.dart';
+import '../../servicios/servicio_preferencias.dart';
+import 'pantalla_principal.dart';
 
 class PantallaLogin extends StatefulWidget {
   const PantallaLogin({super.key});
@@ -18,16 +19,18 @@ class _PantallaLoginState extends State<PantallaLogin> {
   @override
   void initState() {
     super.initState();
-    _comprobarUsuarioRecordado();
+    _comprobarUsuarioGuardado();
   }
 
-  Future<void> _comprobarUsuarioRecordado() async {
-    final id = await ServicioAutenticacion.instancia.obtenerUsuarioRecordado();
-    if (id != null) {
-      // Usuario recordado → ir directamente al feed
+  Future<void> _comprobarUsuarioGuardado() async {
+    final prefs = ServicioPreferencias.instancia;
+
+    // Si l’usuari va marcar "recordar usuario" i hi ha usuari guardat → entrar directe
+    if (prefs.recordarUsuario &&
+        ServicioAutenticacion.instancia.usuarioActual != null) {
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(builder: (_) => const PantallaFeed()),
+        MaterialPageRoute(builder: (_) => const PantallaPrincipal()),
       );
     }
   }
@@ -48,14 +51,15 @@ class _PantallaLoginState extends State<PantallaLogin> {
       return;
     }
 
-    if (_recordarUsuario) {
-      await ServicioAutenticacion.instancia
-          .guardarUsuarioRecordado(usuario.id!);
-    }
+    // Guardar usuario en autenticación
+    await ServicioAutenticacion.instancia.guardarUsuario(usuario);
+
+    // Guardar preferencia de recordar usuario
+    ServicioPreferencias.instancia.recordarUsuario = _recordarUsuario;
 
     Navigator.pushReplacement(
       context,
-      MaterialPageRoute(builder: (_) => const PantallaFeed()),
+      MaterialPageRoute(builder: (_) => const PantallaPrincipal()),
     );
   }
 

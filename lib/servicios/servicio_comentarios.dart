@@ -1,4 +1,5 @@
 import '../datos/bd/comentario_dao.dart';
+import '../datos/modelos/comentario.dart';
 import 'servicio_autenticacion.dart';
 
 class ServicioComentarios {
@@ -11,10 +12,17 @@ class ServicioComentarios {
     final usuario = ServicioAutenticacion.instancia.usuarioActual;
     if (usuario == null) return;
 
-    await _dao.insertarComentario(idPublicacion, usuario.nombre, texto);
+    final comentario = Comentario(
+      idPublicacion: idPublicacion,
+      nombreUsuario: usuario.nombre,
+      texto: texto,
+      fecha: DateTime.now(),
+    );
+
+    await _dao.insertarComentario(comentario);
   }
 
-  Future<List<Map<String, dynamic>>> obtenerComentarios(int idPublicacion) {
-    return _dao.obtenerComentarios(idPublicacion);
+  Future<List<Comentario>> obtenerComentarios(int idPublicacion) {
+    return _dao.obtenerComentariosDePublicacion(idPublicacion);
   }
 }

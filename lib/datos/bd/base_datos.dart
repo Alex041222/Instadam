@@ -1,4 +1,3 @@
-
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
 
@@ -20,8 +19,9 @@ class BaseDatos {
 
     return await openDatabase(
       ruta,
-      version: 1,
+      version: 2,
       onCreate: _crearTablas,
+      onUpgrade: _actualizarTablas,
     );
   }
 
@@ -37,34 +37,60 @@ class BaseDatos {
     await db.execute('''
       CREATE TABLE publicaciones (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
-        usuario_id INTEGER,
-        ruta_imagen TEXT,
+        idUsuario INTEGER,
+        rutaImagen TEXT,
         descripcion TEXT,
         fecha TEXT,
-        likes INTEGER,
-        comentarios INTEGER,
-        FOREIGN KEY(usuario_id) REFERENCES usuarios(id)
+        likes INTEGER DEFAULT 0,
+        comentarios INTEGER DEFAULT 0,
+        FOREIGN KEY(idUsuario) REFERENCES usuarios(id)
       );
     ''');
 
     await db.execute('''
       CREATE TABLE comentarios (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
-        publicacion_id INTEGER,
-        usuario TEXT,
+        idPublicacion INTEGER,
+        nombreUsuario TEXT,
         texto TEXT,
         fecha TEXT,
-        FOREIGN KEY(publicacion_id) REFERENCES publicaciones(id)
+        FOREIGN KEY(idPublicacion) REFERENCES publicaciones(id)
       );
     ''');
 
     await db.execute('''
       CREATE TABLE likes (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
-        publicacion_id INTEGER,
-        usuario_id INTEGER,
-        UNIQUE(publicacion_id, usuario_id)
+        idUsuario INTEGER,
+        idPublicacion INTEGER,
+        UNIQUE(idUsuario, idPublicacion)
       );
     ''');
+  }
+
+  Future<void> _actualizarTablas(Database db, int oldVersion, int newVersion) async {
+    if (oldVersion < 2) {
+      await db.execute('DROP TABLE IF EXISTS likes');
+      await db.execute('DROP TABLE IF EXISTS comentarios');
+
+      await db.execute('''
+        CREATE TABLE comentarios (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          idPublicacion INTEGER,
+          nombreUsuario TEXT,
+          texto TEXT,
+          fecha TEXT
+        );
+      ''');
+
+      await db.execute('''
+        CREATE TABLE likes (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          idUsuario INTEGER,
+          idPublicacion INTEGER,
+          UNIQUE(idUsuario, idPublicacion)
+        );
+      ''');
+    }
   }
 }

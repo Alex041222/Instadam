@@ -1,56 +1,76 @@
 import 'package:shared_preferences/shared_preferences.dart';
-import '../datos/bd/usuario_dao.dart';
+import '../datos/bd/base_datos.dart';
 import '../datos/modelos/usuario.dart';
+import 'package:sqflite/sqflite.dart';
 
 class ServicioAutenticacion {
   static final ServicioAutenticacion instancia = ServicioAutenticacion._();
-  final UsuarioDAO _usuarioDAO = UsuarioDAO();
-
   ServicioAutenticacion._();
 
-  // -------------------------------------------------------------
-  // REGISTRO
-  // -------------------------------------------------------------
-  Future<bool> registrar(String nombre, String contrasena) async {
-    final usuario = Usuario(nombre: nombre, contrasena: contrasena);
+  Usuario? usuarioActual;
 
-    try {
-      await _usuarioDAO.insertarUsuario(usuario);
-      return true;
-    } catch (e) {
-      // Si el usuario ya existe o hay error
-      return false;
-    }
-  }
-
-  // -------------------------------------------------------------
-  // LOGIN
-  // -------------------------------------------------------------
   Future<Usuario?> iniciarSesion(String nombre, String contrasena) async {
-    return await _usuarioDAO.obtenerUsuario(nombre, contrasena);
+    final db = await BaseDatos.instancia.base;
+
+    final res = await db.query(
+      'usuarios',
+      where: 'nombre = ? AND contrasena = ?',
+      whereArgs: [nombre, contrasena],
+    );
+
+    if (res.isEmpty) return null;
+
+    final usuario = Usuario.fromMap(res.first);
+    usuarioActual = usuario;
+
+    return usuario;
   }
 
-  // -------------------------------------------------------------
-  // RECORDAR USUARIO
-  // -------------------------------------------------------------
-  Future<void> guardarUsuarioRecordado(int idUsuario) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool('usuario_recordado', true);
-    await prefs.setInt('id_usuario_recordado', idUsuario);
+  Future<bool> registrar(String nombre, String contrasena) async {
+    final db = await BaseDatos.instancia.base;
+
+    // Comprovar si existeix
+    final existe = await db.query(
+      'usuarios',
+      where: 'nombre = ?',
+      whereArgs: [nombre],
+    );
+
+    if (existe.isNotEmpty) return false;
+
+    await db.insert('usuarios', {
+      'nombre': nombre,
+      'contrasena': contrasena,
+    });
+
+    return true;
   }
 
-  Future<int?> obtenerUsuarioRecordado() async {
+  Future<void> guardarUsuario(Usuario usuario) async {
     final prefs = await SharedPreferences.getInstance();
-    final recordado = prefs.getBool('usuario_recordado') ?? false;
+    await prefs.setInt('idUsuario', usuario.id!);
+    await prefs.setString('nombreUsuario', usuario.nombre);
+    usuarioActual = usuario;
+  }
 
-    if (!recordado) return null;
+  Future<void> cargarUsuarioGuardado() async {
+    final prefs = await SharedPreferences.getInstance();
 
-    return prefs.getInt('id_usuario_recordado');
+    final id = prefs.getInt('idUsuario');
+    final nombre = prefs.getString('nombreUsuario');
+
+    if (id != null && nombre != null) {
+      usuarioActual = Usuario(
+        id: id,
+        nombre: nombre,
+        contrasena: '',
+      );
+    }
   }
 
   Future<void> cerrarSesion() async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.remove('usuario_recordado');
-    await prefs.remove('id_usuario_recordado');
+    await prefs.clear();
+    usuarioActual = null;
   }
 }
