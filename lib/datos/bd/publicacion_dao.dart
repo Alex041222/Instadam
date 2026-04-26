@@ -31,6 +31,7 @@ class PublicacionDAO {
 
     return resultado.map((fila) => Publicacion.fromMap(fila)).toList();
   }
+
   Future<void> actualizarLikes(int idPublicacion, int likes) async {
     final db = await BaseDatos.instancia.base;
     await db.update(
@@ -51,4 +52,11 @@ class PublicacionDAO {
     );
   }
 
+  Future<void> incrementarComentarios(int idPublicacion) async {
+    final db = await BaseDatos.instancia.base;
+    await db.rawUpdate(
+      'UPDATE publicaciones SET comentarios = comentarios + 1 WHERE id = ?',
+      [idPublicacion],
+    );
+  }
 }

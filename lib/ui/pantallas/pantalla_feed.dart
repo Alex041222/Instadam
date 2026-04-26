@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import '../../datos/bd/publicacion_dao.dart';
 import '../../datos/bd/usuario_dao.dart';
+import '../../datos/bd/comentario_dao.dart';
 import '../../datos/modelos/publicacion.dart';
 import '../../datos/modelos/usuario.dart';
-import '../widgets/tarjeta_publicacion.dart';
+import '../../datos/modelos/comentario.dart';
+import '../widgets/tarjeta_publicacion.dart';   // ← IMPORTANT
 
 class PantallaFeed extends StatefulWidget {
   const PantallaFeed({super.key});
@@ -15,6 +17,7 @@ class PantallaFeed extends StatefulWidget {
 class _PantallaFeedState extends State<PantallaFeed> {
   final PublicacionDAO _publicacionDAO = PublicacionDAO();
   final UsuarioDAO _usuarioDAO = UsuarioDAO();
+  final ComentarioDAO _comentarioDAO = ComentarioDAO();
 
   Future<List<Map<String, dynamic>>> _cargarFeed() async {
     final publicaciones = await _publicacionDAO.obtenerPublicaciones();
@@ -22,8 +25,15 @@ class _PantallaFeedState extends State<PantallaFeed> {
 
     for (var pub in publicaciones) {
       final usuario = await _usuarioDAO.obtenerUsuarioPorId(pub.idUsuario);
+      final Comentario? ultimoComentario =
+      await _comentarioDAO.obtenerUltimoComentario(pub.id!);
+
       if (usuario != null) {
-        resultado.add({"publicacion": pub, "usuario": usuario});
+        resultado.add({
+          "publicacion": pub,
+          "usuario": usuario,
+          "ultimoComentario": ultimoComentario,
+        });
       }
     }
 
@@ -41,21 +51,22 @@ class _PantallaFeedState extends State<PantallaFeed> {
 
         final datos = snapshot.data as List<Map<String, dynamic>>;
 
-        if (datos.isEmpty) {
-          return const Center(child: Text("No hay publicaciones todavía"));
-        }
+        return RefreshIndicator(
+          onRefresh: () async => setState(() {}),
+          child: ListView.builder(
+            itemCount: datos.length,
+            itemBuilder: (context, index) {
+              final Publicacion pub = datos[index]["publicacion"];
+              final Usuario usu = datos[index]["usuario"];
+              final Comentario? ultimoComentario = datos[index]["ultimoComentario"];
 
-        return ListView.builder(
-          itemCount: datos.length,
-          itemBuilder: (context, index) {
-            final pub = datos[index]["publicacion"] as Publicacion;
-            final usu = datos[index]["usuario"] as Usuario;
-
-            return TarjetaPublicacion(
-              publicacion: pub,
-              usuario: usu,
-            );
-          },
+              return TarjetaPublicacion(
+                publicacion: pub,
+                usuario: usu,
+                onRefresh: () => setState(() {}),   // ← AIXÒ FA QUE TOT FUNCIONI
+              );
+            },
+          ),
         );
       },
     );

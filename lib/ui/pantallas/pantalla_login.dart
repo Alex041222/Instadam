@@ -13,8 +13,14 @@ class PantallaLogin extends StatefulWidget {
 class _PantallaLoginState extends State<PantallaLogin> {
   final TextEditingController _controlUsuario = TextEditingController();
   final TextEditingController _controlContrasena = TextEditingController();
+
+  final FocusNode _focusUsuario = FocusNode();
+  final FocusNode _focusContrasena = FocusNode();
+
   bool _recordarUsuario = false;
   bool _cargando = false;
+
+  String? _errorGlobal;
 
   @override
   void initState() {
@@ -25,18 +31,23 @@ class _PantallaLoginState extends State<PantallaLogin> {
   Future<void> _comprobarUsuarioGuardado() async {
     final prefs = ServicioPreferencias.instancia;
 
-    // Si l’usuari va marcar "recordar usuario" i hi ha usuari guardat → entrar directe
     if (prefs.recordarUsuario &&
         ServicioAutenticacion.instancia.usuarioActual != null) {
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (_) => const PantallaPrincipal()),
-      );
+
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => const PantallaPrincipal()),
+        );
+      });
     }
   }
 
   Future<void> _iniciarSesion() async {
-    setState(() => _cargando = true);
+    setState(() {
+      _cargando = true;
+      _errorGlobal = null;
+    });
 
     final nombre = _controlUsuario.text.trim();
     final contrasena = _controlContrasena.text.trim();
@@ -47,14 +58,13 @@ class _PantallaLoginState extends State<PantallaLogin> {
     setState(() => _cargando = false);
 
     if (usuario == null) {
-      _mostrarMensaje("Usuario o contraseña incorrectos");
+      setState(() {
+        _errorGlobal = "Usuario o contraseña incorrectos";
+      });
       return;
     }
 
-    // Guardar usuario en autenticación
     await ServicioAutenticacion.instancia.guardarUsuario(usuario);
-
-    // Guardar preferencia de recordar usuario
     ServicioPreferencias.instancia.recordarUsuario = _recordarUsuario;
 
     Navigator.pushReplacement(
@@ -68,24 +78,20 @@ class _PantallaLoginState extends State<PantallaLogin> {
     final contrasena = _controlContrasena.text.trim();
 
     if (nombre.isEmpty || contrasena.isEmpty) {
-      _mostrarMensaje("Rellena usuario y contraseña");
+      setState(() {
+        _errorGlobal = "Rellena usuario y contraseña";
+      });
       return;
     }
 
     final ok = await ServicioAutenticacion.instancia
         .registrar(nombre, contrasena);
 
-    if (ok) {
-      _mostrarMensaje("Usuario registrado. Ahora inicia sesión.");
-    } else {
-      _mostrarMensaje("El usuario ya existe");
-    }
-  }
-
-  void _mostrarMensaje(String texto) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(texto)),
-    );
+    setState(() {
+      _errorGlobal = ok
+          ? "Usuario registrado. Ahora inicia sesión."
+          : "El usuario ya existe";
+    });
   }
 
   @override
@@ -96,49 +102,100 @@ class _PantallaLoginState extends State<PantallaLogin> {
         padding: const EdgeInsets.all(20),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.start,
+
           children: [
+
+            if (_errorGlobal != null)
+              Semantics(
+                liveRegion: true,
+                child: Padding(
+                  padding: const EdgeInsets.only(bottom: 15),
+                  child: Text(
+                    _errorGlobal!,
+                    style: const TextStyle(color: Colors.red),
+                  ),
+                ),
+              ),
+
+            const Text("Usuario"),
             TextField(
               controller: _controlUsuario,
-              decoration: const InputDecoration(
-                labelText: "Usuario",
-              ),
+              focusNode: _focusUsuario,
+              textInputAction: TextInputAction.next,
+              onSubmitted: (_) =>
+                  FocusScope.of(context).requestFocus(_focusContrasena),
             ),
+
             const SizedBox(height: 15),
+
+            const Text("Contraseña"),
             TextField(
               controller: _controlContrasena,
               obscureText: true,
-              decoration: const InputDecoration(
-                labelText: "Contraseña",
-              ),
+              focusNode: _focusContrasena,
+              textInputAction: TextInputAction.done,
             ),
+
             const SizedBox(height: 15),
 
-            Row(
-              children: [
-                Checkbox(
-                  value: _recordarUsuario,
-                  onChanged: (v) {
-                    setState(() => _recordarUsuario = v!);
-                  },
-                ),
-                const Text("Recordar usuario"),
-              ],
+            Semantics(
+              label: "Recordar usuario",
+              toggled: _recordarUsuario,
+              child: Row(
+                children: [
+                  Switch(
+                    value: _recordarUsuario,
+                    onChanged: (v) {
+                      setState(() => _recordarUsuario = v);
+                    },
+                  ),
+                  const Text("Recordar usuario"),
+                ],
+              ),
             ),
 
             const SizedBox(height: 20),
 
             _cargando
-                ? const CircularProgressIndicator()
+                ? const Center(child: CircularProgressIndicator())
                 : Column(
               children: [
-                ElevatedButton(
-                  onPressed: _iniciarSesion,
-                  child: const Text("Iniciar sesión"),
+
+                // BOTÓ LOGIN AMB CONTORN GRUIXUT
+                Semantics(
+                  label: "Iniciar sesión",
+                  button: true,
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      minimumSize: const Size(double.infinity, 48),
+                      side: const BorderSide(
+                        color: Colors.black,
+                        width: 2, // contorn gruixut
+                      ),
+                    ),
+                    onPressed: _iniciarSesion,
+                    child: const Text("Iniciar sesión"),
+                  ),
                 ),
+
                 const SizedBox(height: 10),
-                OutlinedButton(
-                  onPressed: _registrarse,
-                  child: const Text("Registrarse"),
+
+                // BOTÓ REGISTRE AMB CONTORN GRUIXUT
+                Semantics(
+                  label: "Registrarse",
+                  button: true,
+                  child: OutlinedButton(
+                    style: OutlinedButton.styleFrom(
+                      minimumSize: const Size(double.infinity, 48),
+                      side: const BorderSide(
+                        color: Colors.black,
+                        width: 2, // contorn gruixut
+                      ),
+                    ),
+                    onPressed: _registrarse,
+                    child: const Text("Registrarse"),
+                  ),
                 ),
               ],
             ),

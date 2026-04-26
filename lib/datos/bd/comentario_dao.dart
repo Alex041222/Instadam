@@ -1,11 +1,18 @@
 import 'package:sqflite/sqflite.dart';
 import 'base_datos.dart';
 import '../modelos/comentario.dart';
+import 'publicacion_dao.dart';
 
 class ComentarioDAO {
   Future<int> insertarComentario(Comentario c) async {
     final db = await BaseDatos.instancia.base;
-    return await db.insert('comentarios', c.toMap());
+
+    final id = await db.insert('comentarios', c.toMap());
+
+    // Incrementa el contador de comentarios en la publicación
+    await PublicacionDAO().incrementarComentarios(c.idPublicacion);
+
+    return id;
   }
 
   Future<List<Comentario>> obtenerComentariosDePublicacion(int idPublicacion) async {
@@ -19,17 +26,6 @@ class ComentarioDAO {
     );
 
     return res.map((e) => Comentario.fromMap(e)).toList();
-  }
-
-  Future<int> contarComentariosDePublicacion(int idPublicacion) async {
-    final db = await BaseDatos.instancia.base;
-
-    final res = await db.rawQuery(
-      'SELECT COUNT(*) as total FROM comentarios WHERE idPublicacion = ?',
-      [idPublicacion],
-    );
-
-    return Sqflite.firstIntValue(res) ?? 0;
   }
 
   Future<Comentario?> obtenerUltimoComentario(int idPublicacion) async {
@@ -46,4 +42,16 @@ class ComentarioDAO {
     if (res.isEmpty) return null;
     return Comentario.fromMap(res.first);
   }
+  Future<int> contarComentariosDePublicacion(int idPublicacion) async {
+    final db = await BaseDatos.instancia.base;
+
+    final res = await db.rawQuery(
+      'SELECT COUNT(*) as total FROM comentarios WHERE idPublicacion = ?',
+      [idPublicacion],
+    );
+
+    return Sqflite.firstIntValue(res) ?? 0;
+  }
+
+
 }

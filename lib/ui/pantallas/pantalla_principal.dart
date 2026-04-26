@@ -13,13 +13,15 @@ class PantallaPrincipal extends StatefulWidget {
 class _PantallaPrincipalState extends State<PantallaPrincipal> {
   int _index = 0;
 
+  // Evita doble clic i errors de Navigator en MIUI
+  bool _navegando = false;
+
   @override
   Widget build(BuildContext context) {
-    // Així es recrea cada vegada i el feed es refresca
     Widget pantallaActual;
 
     if (_index == 0) {
-      pantallaActual = PantallaFeed(); // es recrea i refresca
+      pantallaActual = PantallaFeed();
     } else {
       pantallaActual = const PantallaPerfil();
     }
@@ -37,8 +39,11 @@ class _PantallaPrincipalState extends State<PantallaPrincipal> {
 
       floatingActionButton: _index == 0
           ? FloatingActionButton(
-        child: const Icon(Icons.add),
-        onPressed: () async {
+        onPressed: _navegando
+            ? null
+            : () async {
+          setState(() => _navegando = true);
+
           final refrescar = await Navigator.push(
             context,
             MaterialPageRoute(
@@ -46,10 +51,13 @@ class _PantallaPrincipalState extends State<PantallaPrincipal> {
             ),
           );
 
+          setState(() => _navegando = false);
+
           if (refrescar == true && mounted) {
             setState(() {});
           }
         },
+        child: const Icon(Icons.add),
       )
           : null,
 

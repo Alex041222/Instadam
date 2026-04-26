@@ -6,15 +6,18 @@ import '../../datos/bd/comentario_dao.dart';
 import '../../servicios/servicio_autenticacion.dart';
 import 'dart:io';
 import '../pantallas/pantalla_comentarios.dart';
+import 'package:intl/intl.dart';
 
 class TarjetaPublicacion extends StatefulWidget {
   final Publicacion publicacion;
   final Usuario usuario;
+  final VoidCallback? onRefresh;
 
   const TarjetaPublicacion({
     super.key,
     required this.publicacion,
     required this.usuario,
+    this.onRefresh,
   });
 
   @override
@@ -62,22 +65,32 @@ class _TarjetaPublicacionState extends State<TarjetaPublicacion> {
 
     if (haDadoLike) {
       await _likeDAO.quitarLike(idUsu, idPub);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Has tret el m'agrada")),
+      );
     } else {
       await _likeDAO.darLike(idUsu, idPub);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Has donat m'agrada")),
+      );
     }
 
     await _cargarEstado();
+    widget.onRefresh?.call();
   }
 
   Future<void> _abrirComentarios() async {
-    await Navigator.push(
+    final resultat = await Navigator.push(
       context,
       MaterialPageRoute(
         builder: (_) => PantallaComentarios(publicacion: widget.publicacion),
       ),
     );
 
-    await _cargarEstado();
+    if (resultat == true) {
+      await _cargarEstado();
+      widget.onRefresh?.call();
+    }
   }
 
   @override
@@ -87,55 +100,88 @@ class _TarjetaPublicacionState extends State<TarjetaPublicacion> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Nombre del usuario
-          Padding(
-            padding: const EdgeInsets.all(8.0),
-            child: Text(
-              widget.usuario.nombre,
-              style: const TextStyle(
-                fontWeight: FontWeight.bold,
-                fontSize: 18,
+
+          Semantics(
+            label: "Ver perfil de ${widget.usuario.nombre}",
+            button: true,
+            child: Padding(
+              padding: const EdgeInsets.all(8.0),
+              child: Text(
+                widget.usuario.nombre,
+                style: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 18,
+                ),
               ),
             ),
           ),
 
-          // Imagen completa sin recortes
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 8.0),
+            child: Text(
+              "Publicat el: ${DateFormat('HH:mm dd/MM/yyyy').format(widget.publicacion.fecha)}",
+              style: const TextStyle(fontSize: 12, color: Colors.grey),
+            ),
+          ),
+
           if (widget.publicacion.rutaImagen.isNotEmpty)
-            AspectRatio(
-              aspectRatio: 1,
-              child: Image.file(
-                File(widget.publicacion.rutaImagen),
-                fit: BoxFit.contain,
+            Semantics(
+              label: "Abrir publicación",
+              button: true,
+              child: AspectRatio(
+                aspectRatio: 1,
+                child: Image.file(
+                  File(widget.publicacion.rutaImagen),
+                  fit: BoxFit.contain,
+                ),
               ),
             ),
 
           const SizedBox(height: 10),
 
-          // Likes + comentarios
           Row(
             children: [
-              IconButton(
-                icon: Icon(
-                  haDadoLike ? Icons.favorite : Icons.favorite_border,
-                  color: haDadoLike ? Colors.red : Colors.black,
+
+              // LIKE ACCESSIBLE
+              Semantics(
+                label: haDadoLike
+                    ? "M'agrada activat. $totalLikes m'agrades."
+                    : "M'agrada desactivat. $totalLikes m'agrades.",
+                toggled: haDadoLike,
+                onTapHint: haDadoLike
+                    ? "Tocar per treure m'agrada"
+                    : "Tocar per donar m'agrada",
+                button: true,
+                child: IconButton(
+                  icon: Icon(
+                    haDadoLike ? Icons.favorite : Icons.favorite_border,
+                    color: haDadoLike ? Colors.red : Colors.black,
+                  ),
+                  onPressed: _toggleLike,
                 ),
-                onPressed: _toggleLike,
               ),
-              Text("$totalLikes likes"),
+
+              Text("$totalLikes m'agrades"),
 
               const SizedBox(width: 20),
 
-              IconButton(
-                icon: const Icon(Icons.comment),
-                onPressed: _abrirComentarios,
+              // COMENTAR ACCESSIBLE
+              Semantics(
+                label: "Obrir comentaris. $totalComentarios comentaris.",
+                button: true,
+                child: IconButton(
+                  icon: const Icon(Icons.comment),
+                  onPressed: _abrirComentarios,
+                ),
               ),
-              Text("$totalComentarios comentarios"),
+
+              // 🔥 AIXÒ FALTAVA
+              Text("$totalComentarios comentaris"),
             ],
           ),
 
           const SizedBox(height: 10),
 
-          // Descripción
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 8.0),
             child: Text(
@@ -144,7 +190,6 @@ class _TarjetaPublicacionState extends State<TarjetaPublicacion> {
             ),
           ),
 
-          // Último comentario
           if (ultimoComentarioTexto != null) ...[
             const SizedBox(height: 8),
             Padding(
