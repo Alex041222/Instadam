@@ -126,7 +126,7 @@ class _TarjetaPublicacionState extends State<TarjetaPublicacion> {
 
           if (widget.publicacion.rutaImagen.isNotEmpty)
             Semantics(
-              label: "Abrir publicación",
+              label: "Imatge de la publicació de ${widget.usuario.nombre}",
               button: true,
               child: AspectRatio(
                 aspectRatio: 1,

@@ -112,16 +112,19 @@ class _PantallaLoginState extends State<PantallaLogin> {
                 child: Padding(
                   padding: const EdgeInsets.only(bottom: 15),
                   child: Text(
-                    _errorGlobal!,
+                    "Error: ${_errorGlobal!}",
                     style: const TextStyle(color: Colors.red),
                   ),
                 ),
               ),
 
-            const Text("Usuario"),
             TextField(
               controller: _controlUsuario,
               focusNode: _focusUsuario,
+              decoration: const InputDecoration(
+                labelText: "Usuari",
+                border: OutlineInputBorder(),
+              ),
               textInputAction: TextInputAction.next,
               onSubmitted: (_) =>
                   FocusScope.of(context).requestFocus(_focusContrasena),
@@ -129,11 +132,14 @@ class _PantallaLoginState extends State<PantallaLogin> {
 
             const SizedBox(height: 15),
 
-            const Text("Contraseña"),
             TextField(
               controller: _controlContrasena,
               obscureText: true,
               focusNode: _focusContrasena,
+              decoration: const InputDecoration(
+                labelText: "Contrasenya",
+                border: OutlineInputBorder(),
+              ),
               textInputAction: TextInputAction.done,
             ),
 

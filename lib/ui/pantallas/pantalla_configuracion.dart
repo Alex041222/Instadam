@@ -125,8 +125,8 @@ class _PantallaConfiguracionState extends State<PantallaConfiguracion> {
                 button: true,
                 label: es ? "Botón de cerrar sesión" : "Botó de tancar sessió",
                 hint: es
-                    ? "Abre un diálogo para confirmar la salida"
-                    : "Obre un diàleg per confirmar la sortida",
+                    ? "Cerrará tu sesión y volverás a la pantalla de inicio"
+                    : "Tancarà la teva sessió i tornaràs a la pantalla d'inici",
                 child: ListTile(
                   title: Text(
                     es ? "Cerrar sesión" : "Tancar sessió",
