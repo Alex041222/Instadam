@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../../servicios/servicio_autenticacion.dart';
 import '../../servicios/servicio_preferencias.dart';
 import 'pantalla_principal.dart';
+import 'pantalla_registro.dart';
 
 class PantallaLogin extends StatefulWidget {
   const PantallaLogin({super.key});
@@ -49,49 +51,50 @@ class _PantallaLoginState extends State<PantallaLogin> {
       _errorGlobal = null;
     });
 
-    final nombre = _controlUsuario.text.trim();
+    final email = _controlUsuario.text.trim();
     final contrasena = _controlContrasena.text.trim();
 
-    final usuario = await ServicioAutenticacion.instancia
-        .iniciarSesion(nombre, contrasena);
-
-    setState(() => _cargando = false);
-
-    if (usuario == null) {
+    if (email.isEmpty || !email.contains('@')) {
       setState(() {
-        _errorGlobal = "Usuario o contraseña incorrectos";
+        _cargando = false;
+        _errorGlobal = "Email no válido";
       });
       return;
     }
 
-    await ServicioAutenticacion.instancia.guardarUsuario(usuario);
-    ServicioPreferencias.instancia.recordarUsuario = _recordarUsuario;
+    try {
+      final usuario = await ServicioAutenticacion.instancia
+          .iniciarSesion(email, contrasena);
 
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(builder: (_) => const PantallaPrincipal()),
-    );
-  }
+      setState(() => _cargando = false);
 
-  Future<void> _registrarse() async {
-    final nombre = _controlUsuario.text.trim();
-    final contrasena = _controlContrasena.text.trim();
+      if (usuario == null) {
+        setState(() {
+          _errorGlobal = "Usuario no encontrado";
+        });
+        return;
+      }
 
-    if (nombre.isEmpty || contrasena.isEmpty) {
+      await ServicioAutenticacion.instancia.guardarUsuario(usuario);
+      ServicioPreferencias.instancia.recordarUsuario = _recordarUsuario;
+
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => const PantallaPrincipal()),
+      );
+    } on FirebaseAuthException catch (e) {
       setState(() {
-        _errorGlobal = "Rellena usuario y contraseña";
+        _cargando = false;
+        if (e.code == 'user-not-found') _errorGlobal = "Usuario no encontrado";
+        else if (e.code == 'wrong-password') _errorGlobal = "Contraseña incorrecta";
+        else _errorGlobal = "Error: ${e.message}";
       });
-      return;
+    } catch (e) {
+      setState(() {
+        _cargando = false;
+        _errorGlobal = "S'ha produït un error inesperat";
+      });
     }
-
-    final ok = await ServicioAutenticacion.instancia
-        .registrar(nombre, contrasena);
-
-    setState(() {
-      _errorGlobal = ok
-          ? "Usuario registrado. Ahora inicia sesión."
-          : "El usuario ya existe";
-    });
   }
 
   @override
@@ -105,6 +108,20 @@ class _PantallaLoginState extends State<PantallaLogin> {
           crossAxisAlignment: CrossAxisAlignment.start,
 
           children: [
+            Center(
+              child: Semantics(
+                label: "Logo de InstaDAM",
+                image: true,
+                child: Image.asset(
+                  "assets/logo.png",
+                  width: 250,
+                  height: 250,
+                  errorBuilder: (_, __, ___) => const Icon(Icons.photo, size: 250),
+                ),
+              ),
+            ),
+
+            const SizedBox(height: 40),
 
             if (_errorGlobal != null)
               Semantics(
@@ -122,8 +139,9 @@ class _PantallaLoginState extends State<PantallaLogin> {
               controller: _controlUsuario,
               focusNode: _focusUsuario,
               decoration: const InputDecoration(
-                labelText: "Usuari",
+                labelText: "Email",
                 border: OutlineInputBorder(),
+                prefixIcon: Icon(Icons.email),
               ),
               textInputAction: TextInputAction.next,
               onSubmitted: (_) =>
@@ -137,8 +155,9 @@ class _PantallaLoginState extends State<PantallaLogin> {
               obscureText: true,
               focusNode: _focusContrasena,
               decoration: const InputDecoration(
-                labelText: "Contrasenya",
+                labelText: "Contraseña",
                 border: OutlineInputBorder(),
+                prefixIcon: Icon(Icons.lock),
               ),
               textInputAction: TextInputAction.done,
             ),
@@ -185,22 +204,29 @@ class _PantallaLoginState extends State<PantallaLogin> {
                   ),
                 ),
 
-                const SizedBox(height: 10),
+                const SizedBox(height: 20),
 
-                // BOTÓ REGISTRE AMB CONTORN GRUIXUT
+                // TEXT PER ANAR A REGISTRE
                 Semantics(
-                  label: "Registrarse",
+                  label: "¿No tienes cuenta? Regístrate aquí",
                   button: true,
-                  child: OutlinedButton(
-                    style: OutlinedButton.styleFrom(
-                      minimumSize: const Size(double.infinity, 48),
-                      side: const BorderSide(
-                        color: Colors.black,
-                        width: 2, // contorn gruixut
+                  child: Center(
+                    child: TextButton(
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (_) => const PantallaRegistro()),
+                        );
+                      },
+                      child: const Text(
+                        "¿No tienes cuenta? Regístrate",
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.blue,
+                        ),
                       ),
                     ),
-                    onPressed: _registrarse,
-                    child: const Text("Registrarse"),
                   ),
                 ),
               ],

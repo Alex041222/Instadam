@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../../datos/modelos/publicacion.dart';
 import '../../datos/modelos/comentario.dart';
-import '../../datos/bd/comentario_dao.dart';
 import '../../servicios/servicio_autenticacion.dart';
+import '../../servicios/servicio_firestore.dart';
 
 class PantallaComentarios extends StatefulWidget {
   final Publicacion publicacion;
@@ -15,23 +15,7 @@ class PantallaComentarios extends StatefulWidget {
 }
 
 class _PantallaComentariosState extends State<PantallaComentarios> {
-  final _dao = ComentarioDAO();
   final _control = TextEditingController();
-  List<Comentario> _comentarios = [];
-
-  @override
-  void initState() {
-    super.initState();
-    _cargarComentarios();
-  }
-
-  Future<void> _cargarComentarios() async {
-    final lista = await _dao.obtenerComentariosDePublicacion(widget.publicacion.id!);
-    if (!mounted) return;
-    setState(() {
-      _comentarios = lista;
-    });
-  }
 
   Future<void> _enviarComentario() async {
     final texto = _control.text.trim();
@@ -40,23 +24,26 @@ class _PantallaComentariosState extends State<PantallaComentarios> {
     final usuario = ServicioAutenticacion.instancia.usuarioActual!;
     final nuevo = Comentario(
       idPublicacion: widget.publicacion.id!,
+      uidAutor: usuario.id!,
       nombreUsuario: usuario.nombre,
       texto: texto,
       fecha: DateTime.now(),
     );
 
-    await _dao.insertarComentario(nuevo);
-    _control.clear();
+    try {
+      await ServicioFirestore.instancia.afegirComentari(nuevo);
+      _control.clear();
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text("Comentari afegit")),
-    );
-
-    // Actualitza la llista local
-    await _cargarComentarios();
-
-    // 🔥 Torna al feed i força refresc del comptador
-    Navigator.pop(context, true);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Comentari afegit")),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Error: $e")),
+      );
+    }
   }
 
   @override
@@ -69,23 +56,38 @@ class _PantallaComentariosState extends State<PantallaComentarios> {
       body: Column(
         children: [
           Expanded(
-            child: ListView.builder(
-              padding: const EdgeInsets.only(bottom: 10),
-              itemCount: _comentarios.length,
-              itemBuilder: (_, i) {
-                final c = _comentarios[i];
-                final hora = DateFormat('HH:mm dd/MM/yyyy').format(c.fecha);
+            child: StreamBuilder<List<Comentario>>(
+              stream: ServicioFirestore.instancia.obtenerComentarios(widget.publicacion.id!),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator());
+                }
 
-                return MergeSemantics(
-                  child: ListTile(
-                    leading: ExcludeSemantics(
-                      child: const CircleAvatar(child: Icon(Icons.person)),
-                    ),
-                    title: Text(c.nombreUsuario),
-                    subtitle: Text("${c.texto}\n$hora"),
-                  ),
+                final comentarios = snapshot.data ?? [];
+
+                if (comentarios.isEmpty) {
+                  return const Center(child: Text("Encara no hi ha comentaris."));
+                }
+
+                return ListView.builder(
+                  padding: const EdgeInsets.only(bottom: 10),
+                  itemCount: comentarios.length,
+                  itemBuilder: (_, i) {
+                    final c = comentarios[i];
+                    final hora = DateFormat('HH:mm dd/MM/yyyy').format(c.fecha);
+
+                    return MergeSemantics(
+                      child: ListTile(
+                        leading: ExcludeSemantics(
+                          child: const CircleAvatar(child: Icon(Icons.person)),
+                        ),
+                        title: Text(c.nombreUsuario),
+                        subtitle: Text("${c.texto}\n$hora"),
+                      ),
+                    );
+                  },
                 );
-              },
+              }
             ),
           ),
 
@@ -94,7 +96,7 @@ class _PantallaComentariosState extends State<PantallaComentarios> {
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: Theme.of(context).cardColor,
                 boxShadow: [
                   BoxShadow(
                     color: Colors.black.withOpacity(0.1),

@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import '../../servicios/servicio_autenticacion.dart';
-import '../../datos/bd/publicacion_dao.dart';
+import '../../servicios/servicio_firestore.dart';
 import '../../datos/modelos/publicacion.dart';
+import '../../datos/modelos/usuario.dart';
 import '../widgets/tarjeta_publicacion.dart';
 import 'pantalla_configuracion.dart';
 import '../../idioma_controller.dart';
@@ -15,22 +16,76 @@ class PantallaPerfil extends StatefulWidget {
 
 class _PantallaPerfilState extends State<PantallaPerfil> {
   List<Publicacion> _misPublicaciones = [];
+  bool _cargando = true;
 
   @override
   void initState() {
     super.initState();
-    _cargarMisPublicaciones();
+    _cargarDatos();
   }
 
-  Future<void> _cargarMisPublicaciones() async {
+  Future<void> _cargarDatos() async {
     final usuario = ServicioAutenticacion.instancia.usuarioActual!;
-    final lista = await PublicacionDAO()
-        .obtenerPublicacionesDeUsuario(usuario.id!);
+    final lista = await ServicioFirestore.instancia
+        .obtenerPublicacionesUsuario(usuario.id!);
 
     if (!mounted) return;
     setState(() {
       _misPublicaciones = lista;
+      _cargando = false;
     });
+  }
+
+  Future<void> _editarPerfil() async {
+    final usuario = ServicioAutenticacion.instancia.usuarioActual!;
+    final nameController = TextEditingController(text: usuario.nombre);
+    final bioController = TextEditingController(text: usuario.biografia);
+
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text("Editar Perfil"),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: nameController,
+              decoration: const InputDecoration(labelText: "Nombre"),
+            ),
+            TextField(
+              controller: bioController,
+              decoration: const InputDecoration(labelText: "Biografía"),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text("Cancelar"),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              final updatedUser = Usuario(
+                id: usuario.id,
+                nombre: nameController.text.trim(),
+                email: usuario.email,
+                biografia: bioController.text.trim(),
+                fotoPerfil: usuario.fotoPerfil,
+                fechaCreacion: usuario.fechaCreacion,
+              );
+              await ServicioFirestore.instancia.guardarUsuario(updatedUser);
+              ServicioAutenticacion.instancia.usuarioActual = updatedUser;
+              Navigator.pop(context, true);
+            },
+            child: const Text("Guardar"),
+          ),
+        ],
+      ),
+    );
+
+    if (result == true) {
+      setState(() {});
+    }
   }
 
   @override
@@ -60,16 +115,21 @@ class _PantallaPerfilState extends State<PantallaPerfil> {
             ],
           ),
 
-          body: SingleChildScrollView(
+          body: _cargando 
+            ? const Center(child: CircularProgressIndicator())
+            : SingleChildScrollView(
             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 30),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
                 // FOTO DE PERFIL
-                CircleAvatar(
-                  radius: 50,
-                  backgroundColor: Colors.grey[300],
-                  child: const Icon(Icons.person, size: 60),
+                Semantics(
+                  label: "Foto de perfil",
+                  child: CircleAvatar(
+                    radius: 50,
+                    backgroundColor: Colors.grey[300],
+                    child: const Icon(Icons.person, size: 60),
+                  ),
                 ),
 
                 const SizedBox(height: 20),
@@ -83,6 +143,22 @@ class _PantallaPerfilState extends State<PantallaPerfil> {
                   ),
                 ),
 
+                if (usuario.biografia.isNotEmpty) ...[
+                  const SizedBox(height: 5),
+                  Text(
+                    usuario.biografia,
+                    style: const TextStyle(fontSize: 16, color: Colors.grey),
+                  ),
+                ],
+
+                const SizedBox(height: 15),
+
+                ElevatedButton.icon(
+                  onPressed: _editarPerfil,
+                  icon: const Icon(Icons.edit),
+                  label: const Text("Editar Perfil"),
+                ),
+
                 const SizedBox(height: 30),
 
                 // TÍTOL
@@ -90,8 +166,8 @@ class _PantallaPerfilState extends State<PantallaPerfil> {
                   alignment: Alignment.centerLeft,
                   child: Text(
                     idioma == "es"
-                        ? "Mis publicaciones"
-                        : "Les meves publicacions",
+                        ? "Mis publicaciones (${_misPublicaciones.length})"
+                        : "Les meves publicacions (${_misPublicaciones.length})",
                     style: const TextStyle(
                       fontSize: 20,
                       fontWeight: FontWeight.bold,

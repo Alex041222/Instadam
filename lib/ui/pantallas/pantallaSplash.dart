@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import '../../servicios/servicio_autenticacion.dart';
 import 'pantalla_login.dart';
+import 'pantalla_principal.dart';
 
 class PantallaSplash extends StatefulWidget {
   const PantallaSplash({super.key});
@@ -13,11 +16,24 @@ class _PantallaSplashState extends State<PantallaSplash> {
   void initState() {
     super.initState();
 
-    Future.delayed(const Duration(seconds: 2), () {
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (_) => const PantallaLogin()),
-      );
+    Future.delayed(const Duration(seconds: 2), () async {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user != null) {
+        await ServicioAutenticacion.instancia.cargarUsuarioGuardado();
+        if (mounted) {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (_) => const PantallaPrincipal()),
+          );
+        }
+      } else {
+        if (mounted) {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (_) => const PantallaLogin()),
+          );
+        }
+      }
     });
   }
 
@@ -37,6 +53,7 @@ class _PantallaSplashState extends State<PantallaSplash> {
                 "assets/logo.png",
                 width: 120,
                 height: 120,
+                errorBuilder: (_, __, ___) => const Icon(Icons.photo, size: 120),
               ),
             ),
 

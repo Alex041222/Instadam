@@ -1,6 +1,9 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+
 class Comentario {
-  int? id;
-  int idPublicacion;
+  String? id;
+  String idPublicacion;
+  String uidAutor;
   String nombreUsuario;
   String texto;
   DateTime fecha;
@@ -8,6 +11,7 @@ class Comentario {
   Comentario({
     this.id,
     required this.idPublicacion,
+    required this.uidAutor,
     required this.nombreUsuario,
     required this.texto,
     required this.fecha,
@@ -15,21 +19,31 @@ class Comentario {
 
   Map<String, dynamic> toMap() {
     return {
-      'id': id,
       'idPublicacion': idPublicacion,
+      'uidAutor': uidAutor,
       'nombreUsuario': nombreUsuario,
       'texto': texto,
-      'fecha': fecha.toIso8601String(),
+      'fecha': Timestamp.fromDate(fecha),
     };
   }
 
-  factory Comentario.fromMap(Map<String, dynamic> map) {
+  factory Comentario.fromMap(Map<String, dynamic> map, {String? documentId}) {
+    DateTime fechaFinal;
+    if (map['fecha'] is Timestamp) {
+      fechaFinal = (map['fecha'] as Timestamp).toDate();
+    } else if (map['fecha'] is String) {
+      fechaFinal = DateTime.parse(map['fecha']);
+    } else {
+      fechaFinal = DateTime.now();
+    }
+
     return Comentario(
-      id: map['id'],
-      idPublicacion: map['idPublicacion'],
-      nombreUsuario: map['nombreUsuario'],
-      texto: map['texto'],
-      fecha: DateTime.parse(map['fecha']),
+      id: documentId,
+      idPublicacion: map['idPublicacion'] ?? '',
+      uidAutor: map['uidAutor'] ?? '',
+      nombreUsuario: map['nombreUsuario'] ?? 'Usuari',
+      texto: map['texto'] ?? '',
+      fecha: fechaFinal,
     );
   }
 }

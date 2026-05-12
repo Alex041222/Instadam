@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'firebase_options.dart';
 import 'servicios/servicio_preferencias.dart';
 import 'servicios/servicio_autenticacion.dart';
 import 'tema_controller.dart';
 import 'idioma_controller.dart';
-import 'ui/pantallas/pantalla_router.dart';
 import 'ui/pantallas/pantalla_principal.dart';
 import 'ui/pantallas/pantalla_login.dart';
 import 'ui/pantallas/pantallaSplash.dart';
@@ -11,7 +12,12 @@ import 'ui/pantallas/pantallaSplash.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
+
   await ServicioPreferencias.instancia.init();
+  // El usuario se cargará via FirebaseAuth.instance.authStateChanges() más adelante o en el splash
   await ServicioAutenticacion.instancia.cargarUsuarioGuardado();
 
   TemaController.instancia.temaOscuro.value =

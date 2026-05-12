@@ -1,76 +1,83 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import '../datos/bd/base_datos.dart';
 import '../datos/modelos/usuario.dart';
-import 'package:sqflite/sqflite.dart';
+import 'servicio_firestore.dart';
 
 class ServicioAutenticacion {
   static final ServicioAutenticacion instancia = ServicioAutenticacion._();
   ServicioAutenticacion._();
 
+  final FirebaseAuth _auth = FirebaseAuth.instance;
   Usuario? usuarioActual;
 
-  Future<Usuario?> iniciarSesion(String nombre, String contrasena) async {
-    final db = await BaseDatos.instancia.base;
+  // Stream per escoltar canvis d'estat (opcional)
+  Stream<User?> get authStateChanges => _auth.authStateChanges();
 
-    final res = await db.query(
-      'usuarios',
-      where: 'nombre = ? AND contrasena = ?',
-      whereArgs: [nombre, contrasena],
-    );
+  Future<Usuario?> iniciarSesion(String email, String contrasena) async {
+    try {
+      final credential = await _auth.signInWithEmailAndPassword(
+        email: email,
+        password: contrasena,
+      );
 
-    if (res.isEmpty) return null;
-
-    final usuario = Usuario.fromMap(res.first);
-    usuarioActual = usuario;
-
-    return usuario;
+      if (credential.user != null) {
+        usuarioActual = await ServicioFirestore.instancia
+            .obtenerUsuario(credential.user!.uid);
+        return usuarioActual;
+      }
+    } on FirebaseAuthException catch (e) {
+      print("Error login: ${e.code}");
+      rethrow; // Per capturar el missatge a la UI
+    }
+    return null;
   }
 
-  Future<bool> registrar(String nombre, String contrasena) async {
-    final db = await BaseDatos.instancia.base;
+  Future<bool> registrar(String nombre, String email, String contrasena) async {
+    try {
+      final credential = await _auth.createUserWithEmailAndPassword(
+        email: email,
+        password: contrasena,
+      );
 
-    // Comprovar si existeix
-    final existe = await db.query(
-      'usuarios',
-      where: 'nombre = ?',
-      whereArgs: [nombre],
-    );
+      if (credential.user != null) {
+        final nouUsuari = Usuario(
+          id: credential.user!.uid,
+          nombre: nombre,
+          email: email,
+          fechaCreacion: DateTime.now(),
+        );
 
-    if (existe.isNotEmpty) return false;
-
-    await db.insert('usuarios', {
-      'nombre': nombre,
-      'contrasena': contrasena,
-    });
-
-    return true;
+        await ServicioFirestore.instancia.guardarUsuario(nouUsuari);
+        usuarioActual = nouUsuari;
+        return true;
+      }
+    } on FirebaseAuthException catch (e) {
+      print("Error registre: ${e.code}");
+      rethrow;
+    }
+    return false;
   }
 
   Future<void> guardarUsuario(Usuario usuario) async {
+    // No cal guardar tota la info a prefs, Firebase ja ho gestiona
+    // Però guardem el nombre per si de cas o per "recordar usuario"
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setInt('idUsuario', usuario.id!);
     await prefs.setString('nombreUsuario', usuario.nombre);
     usuarioActual = usuario;
   }
 
   Future<void> cargarUsuarioGuardado() async {
-    final prefs = await SharedPreferences.getInstance();
-
-    final id = prefs.getInt('idUsuario');
-    final nombre = prefs.getString('nombreUsuario');
-
-    if (id != null && nombre != null) {
-      usuarioActual = Usuario(
-        id: id,
-        nombre: nombre,
-        contrasena: '',
-      );
+    final user = _auth.currentUser;
+    if (user != null) {
+      usuarioActual = await ServicioFirestore.instancia.obtenerUsuario(user.uid);
     }
   }
 
   Future<void> cerrarSesion() async {
+    await _auth.signOut();
     final prefs = await SharedPreferences.getInstance();
-    await prefs.clear();
+    // No esborrem tot el tema/idioma, només info d'usuari
+    await prefs.remove('nombreUsuario');
     usuarioActual = null;
   }
 }

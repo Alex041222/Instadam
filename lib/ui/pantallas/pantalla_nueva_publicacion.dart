@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import '../../datos/bd/publicacion_dao.dart';
 import '../../servicios/servicio_autenticacion.dart';
+import '../../servicios/servicio_firestore.dart';
 import '../../datos/modelos/publicacion.dart';
 import 'dart:io';
 import 'package:image_picker/image_picker.dart';
@@ -59,26 +59,35 @@ class _PantallaNuevaPublicacionState extends State<PantallaNuevaPublicacion> {
     final usuario = ServicioAutenticacion.instancia.usuarioActual!;
 
     final nueva = Publicacion(
-      id: null,
-      idUsuario: usuario.id!,
+      uidAutor: usuario.id!,
+      nombreAutor: usuario.nombre,
       descripcion: _descripcionController.text.trim(),
       rutaImagen: _imagen!.path,
-      likes: 0,
-      comentarios: 0,
+      likes: [],
+      comentariosCount: 0,
       fecha: DateTime.now(),
     );
 
-    await PublicacionDAO().insertarPublicacion(nueva);
+    try {
+      await ServicioFirestore.instancia.crearPublicacion(nueva);
 
-    if (!mounted) return;
+      if (!mounted) return;
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text("Publicació creada correctament"),
-      ),
-    );
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("Publicació creada correctament"),
+        ),
+      );
 
-    Navigator.pop(context, true);
+      Navigator.pop(context, true);
+    } catch (e) {
+      setState(() {
+        _publicando = false;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Error: $e")),
+      );
+    }
   }
 
   @override
